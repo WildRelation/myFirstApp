@@ -1,42 +1,94 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Button, Text, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { Button, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MatchButton from "../components/MatchButton";
 import StimulusGrid from "../components/StimulusGrid";
-import { N, practiceSequence } from "../models/sequence";
+import { StimulusMode } from "../models/settings";
+import { useGameViewModel } from "../viewmodels/useGameViewModel";
 
 export default function GameScreen() {
-  const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const params = useLocalSearchParams<{
+    mode?: string | string[];
+  }>();
 
-  const activeCell = practiceSequence[currentIndex];
-  const isLastEvent = currentIndex === practiceSequence.length - 1;
+  const mode: StimulusMode =
+    params.mode === "audio" || params.mode === "both"
+      ? params.mode
+      : "visual";
 
-  function showNextCell() {
-    if (isLastEvent) {
-      return;
-    }
-
-    setCurrentIndex((previousIndex) => previousIndex + 1);
-  }
+  const game = useGameViewModel(mode);
 
   return (
-    <View style={{ flex: 1, alignItems: "center", gap: 20, padding: 24 }}>
-      <Text>{N}-back</Text>
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{
+        flexGrow: 1,
+        alignItems: "center",
+        gap: 16,
+        paddingTop: 16,
+        paddingLeft: 16 + insets.left,
+        paddingRight: 16 + insets.right,
+        paddingBottom: 24 + insets.bottom,
+      }}
+    >
+      <Text style={{ fontSize: 24 }}>{game.n}-back</Text>
 
       <Text>
-        Stimulus: {currentIndex + 1} / {practiceSequence.length}
+        Stimulus: {game.eventNumber} / {game.totalEvents}
       </Text>
 
-      <StimulusGrid activeCell={activeCell} />
+      <View style={{ alignItems: "center", gap: 4 }}>
+        <Text>Rätta svar: {game.correctResponses}</Text>
+        <Text>Feltryck: {game.falseAlarms}</Text>
+        <Text>Missade matchningar: {game.misses}</Text>
+        <Text>Poäng: {game.score}</Text>
+      </View>
 
-      <Button
-        title="Nästa stimulus"
-        onPress={showNextCell}
-        disabled={isLastEvent}
+      {game.showVisual ? (
+        <StimulusGrid
+          activeCell={game.activeCell}
+          eventNumber={game.eventNumber}
+        />
+      ) : (
+        <Text>Lyssna på bokstäverna.</Text>
+      )}
+
+      <MatchButton
+        onPress={game.checkMatch}
+        disabled={!game.canAnswer}
+        errorCount={game.falseAlarms}
       />
 
-      <Button title="Go Back" onPress={() => router.back()} />
-    </View>
+      <Text style={{ minHeight: 24, textAlign: "center" }}>
+        {game.feedback}
+      </Text>
+
+      <Button
+        title={
+          game.status === "finished"
+            ? "Spela igen"
+            : "Starta omgång"
+        }
+        onPress={game.startRound}
+        disabled={game.status === "running"}
+      />
+
+      {game.storageMessage !== "" && (
+        <Text style={{ textAlign: "center" }}>
+          {game.storageMessage}
+        </Text>
+      )}
+
+      {game.audioError !== "" && (
+        <Text
+          accessibilityRole="alert"
+          style={{ textAlign: "center" }}
+        >
+          {game.audioError}
+        </Text>
+      )}
+    </ScrollView>
   );
 }
