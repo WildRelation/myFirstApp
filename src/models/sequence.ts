@@ -21,7 +21,7 @@ export function generateSequence(): number[] {
 
   // Bara positioner från N och framåt får vara matchningar.
   const availablePositions: number[] = [];
-
+2
   for (let index = N; index < EVENTS_PER_ROUND; index++) {
     availablePositions.push(index);
   }
